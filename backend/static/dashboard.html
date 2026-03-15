@@ -53,7 +53,7 @@ footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.8r
 <body>
 <div class="header">
   <h1>NLE Agent 智能体平台</h1>
-  <div class="status"><div class="dot" id="serverDot"></div><span id="serverStatus">Connecting...</span></div>
+  <div class="status"><div class="dot" id="serverDot"></div><span id="serverStatus">连接中...</span></div>
 </div>
 <div class="container">
   <div class="stats">
@@ -79,7 +79,7 @@ footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.8r
 <div class="modal-overlay" id="createModal">
   <div class="modal">
     <h3>创建新会话</h3>
-    <div class="form-group"><label>智能体名称</label><input id="agentName" placeholder="my-agent" value="my-agent"></div>
+    <div class="form-group"><label>智能体名称</label><input id="agentName" placeholder="我的智能体" value="我的智能体"></div>
     <div class="form-group"><label>初始分数</label><input id="initScore" type="number" value="1000"></div>
     <div class="form-group"><label>死亡惩罚</label><input id="deathPenalty" type="number" value="200"></div>
     <div class="modal-actions">
@@ -111,13 +111,14 @@ async function fetchSessions() {
   }
 }
 
+const STATUS_ZH = {'running': '运行中', 'idle': '空闲', 'finished': '已结束'};
 function renderSessions(sessions) {
   const tbody = document.getElementById('sessionsBody');
   if (!sessions.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">暂无活跃会话</td></tr>'; return; }
   tbody.innerHTML = sessions.map(s => `<tr>
     <td><code>${s.session_id.slice(0, 8)}...</code></td>
-    <td>${s.agent_name || 'N/A'}</td>
-    <td><span class="badge badge-${s.status || 'running'}">${s.status || 'running'}</span></td>
+    <td>${s.agent_name || '未命名'}</td>
+    <td><span class="badge badge-${s.status || 'running'}">${STATUS_ZH[s.status] || s.status || '运行中'}</span></td>
     <td>${s.spectators || 0}</td>
     <td class="actions-cell">
       <button class="btn btn-sm btn-outline" onclick="watchSession('${s.session_id}')">观战</button>
@@ -209,7 +210,7 @@ function spectate3D(id) {
 setInterval(() => {
   const s = Math.floor((Date.now() - startTime) / 1000);
   const m = Math.floor(s / 60);
-  document.getElementById('uptime').textContent = m > 0 ? `${m}m ${s%60}s` : `${s}s`;
+  document.getElementById('uptime').textContent = m > 0 ? `${m}分${s%60}秒` : `${s}秒`;
 }, 1000);
 setInterval(fetchSessions, 5000);
 fetchSessions();
