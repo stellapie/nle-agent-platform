@@ -50,6 +50,7 @@ class GameRunner:
 
         await self._send_ready()
         events = self.converter.obs_to_events(obs, full=True)
+        self.ws_manager.cache_full_state(self.session_id, events)
         await self._broadcast_events(events)
 
         step_count = 0
