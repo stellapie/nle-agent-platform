@@ -40,6 +40,8 @@ ALIGN_NAMES = {-1: "Chaotic", 0: "Neutral", 1: "Lawful"}
 HUNGER_NAMES = {0: "Satiated", 1: "Not Hungry", 2: "Hungry", 3: "Weak", 4: "Fainting"}
 CAP_NAMES = {0: "Unencumbered", 1: "Burdened", 2: "Stressed", 3: "Strained", 4: "Overtaxed", 5: "Overloaded"}
 
+GLYPH_CMAP_OFF = 2359
+
 
 class NLEEventConverter:
     """Translate NLE observations into RuntimeEvent dicts for nethack-3d."""
@@ -47,6 +49,7 @@ class NLEEventConverter:
     def __init__(self):
         self._prev_glyphs: Optional[np.ndarray] = None
         self._prev_blstats: Optional[np.ndarray] = None
+        self._last_player_pos: tuple = None
 
     def obs_to_events(self, obs: dict, reward: float = 0.0,
                       done: bool = False, full: bool = False) -> list[dict]:
@@ -75,15 +78,13 @@ class NLEEventConverter:
             for y in range(glyphs.shape[0]):
                 for x in range(glyphs.shape[1]):
                     g = int(glyphs[y, x])
-                    if g == 0:
+                    if g == 0 or g == GLYPH_CMAP_OFF:
                         continue
                     tiles.append({
                         "x": x, "y": y,
                         "glyph": g,
                         "char": chr(int(chars[y, x])) if int(chars[y, x]) > 31 else " ",
                         "color": int(colors[y, x]),
-                        "tileIndex": g,
-                        "window": 2,
                     })
         else:
             diff = (glyphs != self._prev_glyphs)
@@ -95,8 +96,6 @@ class NLEEventConverter:
                     "glyph": g,
                     "char": chr(int(chars[y_val, x_val])) if int(chars[y_val, x_val]) > 31 else " ",
                     "color": int(colors[y_val, x_val]),
-                    "tileIndex": g,
-                    "window": 2,
                 })
 
         if tiles:
@@ -106,11 +105,27 @@ class NLEEventConverter:
         return []
 
     def _player_position_event(self, obs: dict) -> list[dict]:
-        bl = obs["blstats"]
-        px, py = int(bl[25]), int(bl[26])
+        px, py = self._find_player_pos(obs)
+        self._last_player_pos = (px, py)
         return [{"type": "runtime_event", "event": {
             "type": "player_position", "x": px, "y": py,
         }}]
+
+    def _find_player_pos(self, obs: dict) -> tuple:
+        """Extract player position from tty_cursor or chars array."""
+        if "tty_cursor" in obs:
+            cursor = obs["tty_cursor"]
+            row, col = int(cursor[0]), int(cursor[1])
+            if 1 <= row <= 21 and 0 <= col < 80:
+                return col, row - 1
+        chars = obs["chars"]
+        for y in range(chars.shape[0]):
+            for x in range(chars.shape[1]):
+                if chr(int(chars[y, x])) == "@":
+                    return x, y
+        if self._last_player_pos:
+            return self._last_player_pos
+        return 0, 0
 
     def _status_events(self, obs: dict, full: bool) -> list[dict]:
         bl = obs["blstats"]
@@ -203,3 +218,4 @@ class NLEEventConverter:
     def reset(self):
         self._prev_glyphs = None
         self._prev_blstats = None
+        self._last_player_pos = None

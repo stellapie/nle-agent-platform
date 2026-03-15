@@ -14,37 +14,62 @@ from memory.memory_system import MemorySystem
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
+MEMORY_FILE = os.path.join(os.path.dirname(__file__), "memory_data", "memory.json")
 
-def create_llm(provider: str = None) -> object:
+
+def create_llm(provider: str = None):
     provider = provider or os.getenv("LLM_PROVIDER", "deepseek")
+    api_key = os.getenv("LLM_API_KEY", "")
+    model = os.getenv("LLM_MODEL")
+
+    if not api_key:
+        raise ValueError(
+            "LLM_API_KEY environment variable is required. "
+            "Set it before running: export LLM_API_KEY=your_key"
+        )
+
     if provider == "openai":
-        return OpenAILLM(model=os.getenv("LLM_MODEL", "gpt-4o"))
+        return OpenAILLM(api_key=api_key, model=model or "gpt-4o")
     elif provider == "deepseek":
-        return DeepSeekLLM(model=os.getenv("LLM_MODEL", "deepseek-chat"))
+        return DeepSeekLLM(api_key=api_key, model=model or "deepseek-chat")
     elif provider == "anthropic":
-        return AnthropicLLM(model=os.getenv("LLM_MODEL", "claude-sonnet-4-20250514"))
+        return AnthropicLLM(api_key=api_key, model=model or "claude-sonnet-4-20250514")
     else:
         raise ValueError(f"Unknown LLM provider: {provider}")
 
 
 async def main():
     llm = create_llm()
+
     env = ScorableNLEEnv(ScoreConfig(
         initial_score=int(os.getenv("INITIAL_SCORE", "1000")),
         death_penalty=int(os.getenv("DEATH_PENALTY", "200")),
     ))
-    memory = MemorySystem(save_dir="./memory_data")
-    memory.load()
 
-    agent = AgentController(llm=llm, env=env, memory=memory)
+    memory = MemorySystem(llm=llm)
+    if os.path.exists(MEMORY_FILE):
+        try:
+            memory.load(MEMORY_FILE)
+            logging.info("Loaded memory from %s", MEMORY_FILE)
+        except Exception as e:
+            logging.warning("Failed to load memory: %s", e)
+
     max_plans = int(os.getenv("MAX_PLANS", "50"))
+    agent = AgentController(
+        llm=llm,
+        env=env,
+        memory=memory,
+        max_plans=max_plans,
+    )
 
     try:
-        await agent.run(max_plans=max_plans)
+        result = await agent.run()
+        logging.info("Agent finished: %s", result)
     except KeyboardInterrupt:
-        agent.stop()
+        logging.info("Interrupted by user")
     finally:
-        memory.save()
+        os.makedirs(os.path.dirname(MEMORY_FILE), exist_ok=True)
+        memory.save(MEMORY_FILE)
         env.close()
 
 

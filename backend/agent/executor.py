@@ -7,16 +7,23 @@ logger = logging.getLogger(__name__)
 
 
 def _default_interrupts() -> list[InterruptCondition]:
-    def _check_low_hp(obs: dict, **kw: Any) -> bool:
-        hp = obs.get("blstats", {}).get("hitpoints", 100) if isinstance(obs, dict) else 100
-        max_hp = obs.get("blstats", {}).get("max_hitpoints", 100) if isinstance(obs, dict) else 100
-        if max_hp == 0:
+    def _check_low_hp(obs: Any, **kw: Any) -> bool:
+        if not isinstance(obs, dict):
+            return False
+        bl = obs.get("blstats")
+        if bl is None:
+            return False
+        try:
+            hp = int(bl[8])
+            max_hp = int(bl[9])
+        except (IndexError, TypeError):
+            return False
+        if max_hp <= 0:
             return False
         return (hp / max_hp) < 0.3
 
-    def _check_death(obs: dict, **kw: Any) -> bool:
-        done = kw.get("done", False)
-        return bool(done)
+    def _check_death(obs: Any, **kw: Any) -> bool:
+        return bool(kw.get("done", False))
 
     return [
         InterruptCondition(
@@ -53,13 +60,6 @@ class PlanExecutor:
     def _format_observation(self, obs: Any) -> str:
         if self.observation_formatter is not None:
             return self.observation_formatter(obs)
-        if isinstance(obs, dict):
-            parts = []
-            if "text_observation" in obs:
-                parts.append(obs["text_observation"])
-            if "message" in obs:
-                parts.append(f"Message: {obs['message']}")
-            return "\n".join(parts) if parts else str(obs)
         return str(obs)
 
     def _check_interrupts(self, obs: Any, done: bool = False) -> Optional[InterruptCondition]:
@@ -91,7 +91,7 @@ class PlanExecutor:
             done = False
 
             for action_idx in action_indices:
-                obs, reward, done, info = self.env.step(action_idx)
+                obs, reward, done, truncated, info = self.env.step(action_idx)
                 step_reward += reward
                 if done:
                     break
@@ -103,7 +103,7 @@ class PlanExecutor:
             last_obs_text = obs_text
 
             self.memory.record_observation(
-                content=f"Action: {step_text} -> {obs_text}",
+                content=f"Action: {step_text} -> {obs_text[:200]}",
                 importance=3,
                 step_number=plan.steps_executed,
             )
@@ -113,7 +113,7 @@ class PlanExecutor:
                 logger.info("Interrupt triggered: %s", triggered.description)
                 if done:
                     self.memory.record_death(
-                        content=f"Died after action: {step_text}. Observation: {obs_text}",
+                        content=f"Died after action: {step_text}. Observation: {obs_text[:200]}",
                         step_number=plan.steps_executed,
                     )
                 return ExecutionResult(

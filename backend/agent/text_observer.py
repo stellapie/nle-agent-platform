@@ -70,6 +70,22 @@ def glyph_to_name(glyph: int) -> Optional[str]:
 class NLETextObserver:
     """Produce structured text observations from NLE numpy arrays."""
 
+    @staticmethod
+    def _find_player_pos(obs: dict) -> tuple[int, int]:
+        """Extract player (x, y) from tty_cursor or chars array."""
+        if "tty_cursor" in obs:
+            cursor = obs["tty_cursor"]
+            row, col = int(cursor[0]), int(cursor[1])
+            if 1 <= row <= 21 and 0 <= col < 80:
+                return col, row - 1
+        chars = obs.get("chars")
+        if chars is not None:
+            for y in range(chars.shape[0]):
+                for x in range(chars.shape[1]):
+                    if chr(int(chars[y, x])) == "@":
+                        return x, y
+        return 0, 0
+
     def observe(self, obs: dict, meta: Optional[dict] = None) -> dict:
         return {
             "surroundings": self._describe_surroundings(obs),
@@ -100,7 +116,7 @@ class NLETextObserver:
 
     def _describe_surroundings(self, obs: dict) -> str:
         bl = obs["blstats"]
-        px, py = int(bl[25]), int(bl[26])
+        px, py = self._find_player_pos(obs)
         glyphs = obs["glyphs"]
         chars = obs["chars"]
 
@@ -113,7 +129,7 @@ class NLETextObserver:
 
     def _describe_adjacent(self, obs: dict) -> str:
         bl = obs["blstats"]
-        px, py = int(bl[25]), int(bl[26])
+        px, py = self._find_player_pos(obs)
         glyphs = obs["glyphs"]
         h, w = glyphs.shape
         adj = []
@@ -128,7 +144,7 @@ class NLETextObserver:
 
     def _list_visible_entities(self, obs: dict) -> str:
         bl = obs["blstats"]
-        px, py = int(bl[25]), int(bl[26])
+        px, py = self._find_player_pos(obs)
         glyphs = obs["glyphs"]
         h, w = glyphs.shape
         entities = []

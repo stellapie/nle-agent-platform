@@ -13,7 +13,7 @@ body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); c
 .header h1 { font-size: 1.5rem; background: linear-gradient(135deg, var(--primary), #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .header .status { display: flex; align-items: center; gap: 0.5rem; }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
-.container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+.container { max-width: 1400px; margin: 2rem auto; padding: 0 1rem; }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
 .stat-card { background: var(--surface); border-radius: 12px; padding: 1.5rem; border: 1px solid #334155; }
 .stat-card .label { color: var(--muted); font-size: 0.875rem; margin-bottom: 0.5rem; }
@@ -45,7 +45,7 @@ td { border-bottom: 1px solid rgba(51,65,85,0.5); }
 .form-group label { display: block; color: var(--muted); font-size: 0.875rem; margin-bottom: 0.375rem; }
 .form-group input { width: 100%; padding: 0.625rem; border-radius: 8px; border: 1px solid #475569; background: var(--bg); color: var(--text); font-size: 0.875rem; }
 .modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; }
-.tty-container { background: #000; border-radius: 8px; padding: 0.5rem; margin-top: 1rem; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.2; overflow-x: auto; }
+.tty-container { background: #000; border-radius: 12px; padding: 1.5rem; margin-top: 1rem; font-family: 'Courier New', monospace; font-size: 18px; line-height: 1.35; overflow-x: auto; min-height: 500px; }
 .tty-row { white-space: pre; }
 footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.8rem; }
 </style>
@@ -71,8 +71,8 @@ footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.8r
       <tbody id="sessionsBody"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
     </table>
   </div>
-  <div id="ttyView" style="display:none; margin-top: 2rem;">
-    <h3 style="margin-bottom: 0.5rem;">Live Game View - <span id="ttySessionId"></span></h3>
+  <div id="ttyView" style="display:none; margin-top: 2rem; background: var(--surface); border-radius: 12px; padding: 1.5rem; border: 1px solid #334155;">
+    <h3 style="margin-bottom: 1rem; font-size: 1.25rem;">Live Game View - <span id="ttySessionId"></span></h3>
     <div class="tty-container" id="ttyOutput"></div>
   </div>
 </div>
@@ -164,6 +164,12 @@ function watchSession(id) {
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
     if (msg.type === 'runtime_ready') { ttyOutput.innerHTML = '<div style="color:#22c55e">Connected, waiting for game state...</div>'; return; }
+    if (msg.type === 'runtime_event' && msg.event.type === 'clear_scene') {
+      ttyChars = Array.from({length: 21}, () => Array(79).fill(' '));
+      ttyColors = Array.from({length: 21}, () => Array(79).fill(7));
+      renderTTY(ttyChars, ttyColors, ttyOutput);
+      return;
+    }
     if (msg.type === 'runtime_event' && msg.event.type === 'map_glyph_batch') {
       if (!ttyChars) { ttyChars = Array.from({length: 21}, () => Array(79).fill(' ')); ttyColors = Array.from({length: 21}, () => Array(79).fill(7)); }
       for (const t of msg.event.tiles) {

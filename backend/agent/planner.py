@@ -6,7 +6,7 @@ from typing import Optional, Callable
 from agent.llm_interface import LLMInterface
 
 try:
-    from nle_utils.action_translator import NLEActionTranslator
+    from agent.action_translator import NLEActionTranslator
 except ImportError:
     NLEActionTranslator = None
 
