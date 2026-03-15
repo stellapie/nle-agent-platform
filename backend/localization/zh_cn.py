@@ -1,0 +1,87 @@
+"""Chinese localization dictionaries for NLE game messages and entities."""
+
+MONSTER_NAMES = {
+    "newt": "蝾螈", "jackal": "豺狼", "fox": "狐狸", "kobold": "狗头人",
+    "goblin": "哥布林", "grid bug": "格子虫", "bat": "蝙蝠",
+    "gnome": "侏儒", "dwarf": "矮人", "orc": "兽人",
+    "kitten": "小猫", "little dog": "小狗", "pony": "小马",
+    "housecat": "家猫", "dog": "狗", "horse": "马",
+    "large cat": "大猫", "large dog": "大狗", "warhorse": "战马",
+    "sewer rat": "下水道老鼠", "giant rat": "巨鼠",
+    "giant ant": "巨蚁", "killer bee": "杀人蜂",
+    "acid blob": "酸液粘液怪", "floating eye": "漂浮之眼",
+    "yellow light": "黄光", "gas spore": "孢子怪",
+    "lichen": "地衣", "brown mold": "褐霉", "green mold": "绿霉",
+    "red mold": "红霉", "yellow mold": "黄霉",
+    "gnome lord": "侏儒领主", "gnome king": "侏儒国王",
+    "orc shaman": "兽人萨满", "hill orc": "丘陵兽人",
+    "Mordor orc": "魔多兽人", "Uruk-hai": "强兽人",
+    "ogre": "食人魔", "troll": "巨魔", "dragon": "龙",
+    "minotaur": "牛头人", "elf": "精灵", "vampire": "吸血鬼",
+    "zombie": "僵尸", "skeleton": "骷髅", "wraith": "幽灵",
+    "ghost": "鬼魂", "lich": "巫妖", "demon": "恶魔",
+    "shopkeeper": "店主", "guard": "卫兵",
+}
+
+ITEM_NAMES = {
+    "dagger": "匕首", "short sword": "短剑", "long sword": "长剑",
+    "two-handed sword": "双手剑", "mace": "钉锤", "quarterstaff": "长棍",
+    "war hammer": "战锤", "spear": "长矛", "javelin": "标枪",
+    "axe": "斧头", "battle-axe": "战斧", "bow": "弓", "arrow": "箭",
+    "elven dagger": "精灵匕首", "orcish dagger": "兽人匕首",
+    "leather armor": "皮甲", "studded leather armor": "镶钉皮甲",
+    "ring mail": "环甲", "scale mail": "鳞甲", "chain mail": "锁子甲",
+    "splint mail": "板条甲", "plate mail": "板甲",
+    "shield": "盾牌", "cloak": "斗篷", "helm": "头盔",
+    "leather gloves": "皮手套", "gauntlets": "护手", "boots": "靴子",
+    "potion of healing": "治疗药水", "potion of extra healing": "高级治疗药水",
+    "potion of speed": "速度药水", "potion of gain energy": "能量药水",
+    "scroll of identify": "鉴定卷轴", "scroll of teleportation": "传送卷轴",
+    "scroll of enchant weapon": "附魔武器卷轴",
+    "scroll of enchant armor": "附魔护甲卷轴",
+    "scroll of scare monster": "吓退怪物卷轴",
+    "food ration": "口粮", "apple": "苹果", "orange": "橙子",
+    "fortune cookie": "幸运饼干", "corpse": "尸体",
+    "wand of cold": "寒冰魔杖", "wand of fire": "火焰魔杖",
+    "wand of lightning": "闪电魔杖",
+    "ring of shock resistance": "电击抗性戒指",
+    "ring of polymorph control": "变形控制戒指",
+    "cloak of magic resistance": "魔法抗性斗篷",
+    "robe": "长袍", "spellbook": "魔法书",
+    "magic marker": "魔法标记",
+}
+
+TERRAIN_NAMES = {
+    "floor": "地板", "corridor": "走廊", "staircase up": "上楼梯",
+    "staircase down": "下楼梯", "open door": "开着的门",
+    "closed door": "关着的门", "wall": "墙壁", "fountain": "喷泉",
+    "altar": "祭坛", "grave": "坟墓", "throne": "王座",
+    "sink": "水槽", "pool": "水池", "lava": "岩浆", "ice": "冰面",
+    "tree": "树", "iron bars": "铁栏", "dark area": "暗区",
+}
+
+MESSAGE_PATTERNS = [
+    ("You hit", "你击中了"), ("You miss", "你没有击中"),
+    ("You kill", "你杀死了"), ("You die", "你死了"),
+    ("You feel", "你感觉"), ("You see", "你看到"),
+    ("You hear", "你听到"), ("You find", "你发现了"),
+    ("You pick up", "你捡起了"), ("You drop", "你丢弃了"),
+    ("You eat", "你吃了"), ("You drink", "你喝了"),
+    ("You read", "你阅读了"), ("You wear", "你穿上了"),
+    ("You wield", "你装备了"), ("You begin", "你开始"),
+    ("It hits", "它击中了"), ("It misses", "它没有击中"),
+    ("There is", "这里有"), ("Nothing happens", "什么都没发生"),
+    ("The door opens", "门打开了"), ("The door closes", "门关上了"),
+    ("The door is locked", "门是锁着的"), ("Welcome to", "欢迎来到"),
+    ("Goodbye", "再见"), ("Really quit", "真的要退出吗"),
+    ("Not Hungry", "不饿"), ("Hungry", "饥饿"),
+    ("Weak", "虚弱"), ("Fainting", "晕厥"),
+]
+
+STATUS_LABELS = {
+    "HP": "生命", "MP": "法力", "AC": "护甲", "Lv": "等级",
+    "XP": "经验", "Gold": "金币", "St": "力量", "Dx": "敏捷",
+    "Co": "体质", "In": "智力", "Wi": "感知", "Ch": "魅力",
+    "Hunger": "饥饿度", "Align": "阵营", "Score": "分数",
+    "Chaotic": "混乱", "Neutral": "中立", "Lawful": "守序",
+}
