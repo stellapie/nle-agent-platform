@@ -1,9 +1,10 @@
 import asyncio
+import json
 import logging
 import gymnasium as gym
-import nle  # noqa: F401 -- registers NLE envs
+import nle  # noqa: F401
 
-from server.state_serializer import StateSerializer
+from server.nle_event_converter import NLEEventConverter
 from server.ws_manager import WSManager
 from server.config import ServerConfig
 
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class GameRunner:
-    """Run an NLE instance and broadcast state over WebSocket."""
+    """Run an NLE instance and broadcast RuntimeEvent-format messages."""
 
     def __init__(self, session_id: str, ws_manager: WSManager,
                  config: ServerConfig, env_id: str = "NetHackScore-v0"):
@@ -19,7 +20,7 @@ class GameRunner:
         self.ws_manager = ws_manager
         self.config = config
         self.env_id = env_id
-        self.serializer = StateSerializer()
+        self.converter = NLEEventConverter()
         self.env = None
         self.running = False
         self._task = None
@@ -45,10 +46,11 @@ class GameRunner:
 
     async def _run_loop(self):
         obs, info = self.env.reset()
-        self.serializer.reset()
+        self.converter.reset()
 
-        full_state = self.serializer.serialize_full(obs)
-        await self.ws_manager.broadcast_to_spectators(self.session_id, full_state)
+        await self._send_ready()
+        events = self.converter.obs_to_events(obs, full=True)
+        await self._broadcast_events(events)
 
         step_count = 0
         while self.running:
@@ -56,17 +58,33 @@ class GameRunner:
             obs, reward, done, truncated, info = self.env.step(action)
             step_count += 1
 
-            if step_count % self.config.keyframe_interval == 0:
-                state = self.serializer.serialize_full(obs, reward, done)
-            else:
-                state = self.serializer.serialize_delta(obs, reward, done)
-
-            await self.ws_manager.broadcast_to_spectators(self.session_id, state)
+            is_full = (step_count % self.config.keyframe_interval == 0)
+            events = self.converter.obs_to_events(obs, reward=reward, done=done, full=is_full)
+            await self._broadcast_events(events)
 
             if done:
                 obs, info = self.env.reset()
-                self.serializer.reset()
-                full_state = self.serializer.serialize_full(obs)
-                await self.ws_manager.broadcast_to_spectators(self.session_id, full_state)
+                self.converter.reset()
+                events = self.converter.obs_to_events(obs, full=True)
+                await self._broadcast_events(events)
 
             await asyncio.sleep(self.config.step_delay)
+
+    async def _send_ready(self):
+        await self.ws_manager.broadcast_to_spectators(
+            self.session_id, {"type": "runtime_ready"})
+
+    async def _broadcast_events(self, events: list[dict]):
+        if not events:
+            return
+        if len(events) == 1:
+            await self.ws_manager.broadcast_to_spectators(self.session_id, events[0])
+        else:
+            batch = {"type": "runtime_event_batch", "events": [
+                e["event"] for e in events if e.get("type") == "runtime_event"
+            ]}
+            non_event = [e for e in events if e.get("type") != "runtime_event"]
+            for ne in non_event:
+                await self.ws_manager.broadcast_to_spectators(self.session_id, ne)
+            if batch["events"]:
+                await self.ws_manager.broadcast_to_spectators(self.session_id, batch)
