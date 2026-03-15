@@ -1,3 +1,4 @@
+from pathlib import Path
 """FastAPI application with REST + WebSocket endpoints for multi-session NLE platform."""
 import logging
 import os
@@ -7,7 +8,7 @@ from typing import Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
 from server.config import ServerConfig
@@ -73,6 +74,11 @@ app.add_middleware(
 
 # ── REST endpoints ───────────────────────────────────────────────────────────
 
+
+
+@app.get("/")
+async def root():
+    return RedirectResponse("/static/dashboard.html")
 @app.get("/api/health")
 async def health():
     return {
@@ -298,6 +304,10 @@ _frontend_dist = os.path.join(
 )
 if os.path.isdir(_frontend_dist):
     app.mount("/frontend", StaticFiles(directory=_frontend_dist, html=True), name="frontend")
+
+_static_dir = Path(__file__).parent.parent / "static"
+if _static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(_static_dir), html=True), name="static")
     logger.info("Serving frontend from %s", _frontend_dist)
 
 

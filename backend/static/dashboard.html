@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NLE Agent Platform - Dashboard</title>
+<style>
+:root { --bg: #0f172a; --surface: #1e293b; --primary: #3b82f6; --success: #22c55e;
+  --warn: #eab308; --danger: #ef4444; --text: #e2e8f0; --muted: #94a3b8; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+.header { background: var(--surface); border-bottom: 1px solid #334155; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 1.5rem; background: linear-gradient(135deg, var(--primary), #a855f7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.header .status { display: flex; align-items: center; gap: 0.5rem; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+.container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.stat-card { background: var(--surface); border-radius: 12px; padding: 1.5rem; border: 1px solid #334155; }
+.stat-card .label { color: var(--muted); font-size: 0.875rem; margin-bottom: 0.5rem; }
+.stat-card .value { font-size: 2rem; font-weight: 700; }
+.sessions { background: var(--surface); border-radius: 12px; border: 1px solid #334155; overflow: hidden; }
+.sessions-header { padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+.sessions-header h2 { font-size: 1.125rem; }
+.btn { padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 0.875rem; transition: all 0.2s; }
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: #2563eb; }
+.btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8rem; }
+.btn-outline { background: transparent; border: 1px solid #475569; color: var(--text); }
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+.btn-danger { background: var(--danger); color: white; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 0.875rem 1.5rem; }
+th { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #334155; }
+td { border-bottom: 1px solid rgba(51,65,85,0.5); }
+.badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; }
+.badge-running { background: rgba(34,197,94,0.15); color: var(--success); }
+.badge-idle { background: rgba(234,179,8,0.15); color: var(--warn); }
+.badge-finished { background: rgba(148,163,184,0.15); color: var(--muted); }
+.actions-cell { display: flex; gap: 0.5rem; }
+.empty { text-align: center; padding: 3rem; color: var(--muted); }
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); display: none; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: var(--surface); border-radius: 16px; padding: 2rem; width: 90%; max-width: 480px; border: 1px solid #334155; }
+.modal h3 { margin-bottom: 1rem; }
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; color: var(--muted); font-size: 0.875rem; margin-bottom: 0.375rem; }
+.form-group input { width: 100%; padding: 0.625rem; border-radius: 8px; border: 1px solid #475569; background: var(--bg); color: var(--text); font-size: 0.875rem; }
+.modal-actions { display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.5rem; }
+.tty-container { background: #000; border-radius: 8px; padding: 0.5rem; margin-top: 1rem; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.2; overflow-x: auto; }
+.tty-row { white-space: pre; }
+footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>NLE Agent Platform</h1>
+  <div class="status"><div class="dot" id="serverDot"></div><span id="serverStatus">Connecting...</span></div>
+</div>
+<div class="container">
+  <div class="stats">
+    <div class="stat-card"><div class="label">Active Sessions</div><div class="value" id="activeSessions">0</div></div>
+    <div class="stat-card"><div class="label">Total Spectators</div><div class="value" id="totalSpectators">0</div></div>
+    <div class="stat-card"><div class="label">Server Uptime</div><div class="value" id="uptime">--</div></div>
+  </div>
+  <div class="sessions">
+    <div class="sessions-header">
+      <h2>Game Sessions</h2>
+      <button class="btn btn-primary" onclick="showCreateModal()">+ New Session</button>
+    </div>
+    <table>
+      <thead><tr><th>Session ID</th><th>Agent</th><th>Status</th><th>Spectators</th><th>Actions</th></tr></thead>
+      <tbody id="sessionsBody"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+    </table>
+  </div>
+  <div id="ttyView" style="display:none; margin-top: 2rem;">
+    <h3 style="margin-bottom: 0.5rem;">Live Game View - <span id="ttySessionId"></span></h3>
+    <div class="tty-container" id="ttyOutput"></div>
+  </div>
+</div>
+<div class="modal-overlay" id="createModal">
+  <div class="modal">
+    <h3>Create New Session</h3>
+    <div class="form-group"><label>Agent Name</label><input id="agentName" placeholder="my-agent" value="my-agent"></div>
+    <div class="form-group"><label>Initial Score</label><input id="initScore" type="number" value="1000"></div>
+    <div class="form-group"><label>Death Penalty</label><input id="deathPenalty" type="number" value="200"></div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="hideCreateModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="createSession()">Create</button>
+    </div>
+  </div>
+</div>
+<footer>NLE LLM Agent Cloud Gaming Platform &copy; 2026</footer>
+<script>
+const API = window.location.origin;
+let ws = null;
+let startTime = Date.now();
+
+async function fetchSessions() {
+  try {
+    const r = await fetch(`${API}/api/sessions`);
+    const d = await r.json();
+    const health = await (await fetch(`${API}/api/health`)).json();
+    document.getElementById('serverDot').style.background = '#22c55e';
+    document.getElementById('serverStatus').textContent = 'Online';
+    renderSessions(d.sessions || d);
+    const total = (d.sessions || d).reduce((s, x) => s + (x.spectators || 0), 0);
+    document.getElementById('activeSessions').textContent = (d.sessions || d).length;
+    document.getElementById('totalSpectators').textContent = total;
+  } catch (e) {
+    document.getElementById('serverDot').style.background = '#ef4444';
+    document.getElementById('serverStatus').textContent = 'Offline';
+  }
+}
+
+function renderSessions(sessions) {
+  const tbody = document.getElementById('sessionsBody');
+  if (!sessions.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No active sessions</td></tr>'; return; }
+  tbody.innerHTML = sessions.map(s => `<tr>
+    <td><code>${s.session_id.slice(0, 8)}...</code></td>
+    <td>${s.agent_name || 'N/A'}</td>
+    <td><span class="badge badge-${s.status || 'running'}">${s.status || 'running'}</span></td>
+    <td>${s.spectators || 0}</td>
+    <td class="actions-cell">
+      <button class="btn btn-sm btn-outline" onclick="watchSession('${s.session_id}')">Watch</button>
+      <button class="btn btn-sm btn-outline" onclick="spectate3D('${s.session_id}')">3D View</button>
+      ${s.session_id !== 'default' ? `<button class="btn btn-sm btn-danger" onclick="deleteSession('${s.session_id}')">Delete</button>` : ''}
+    </td>
+  </tr>`).join('');
+}
+
+function showCreateModal() { document.getElementById('createModal').style.display = 'flex'; }
+function hideCreateModal() { document.getElementById('createModal').style.display = 'none'; }
+
+async function createSession() {
+  const name = document.getElementById('agentName').value;
+  const score = parseInt(document.getElementById('initScore').value);
+  const penalty = parseInt(document.getElementById('deathPenalty').value);
+  const r = await fetch(`${API}/api/sessions`, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({agent_name: name, config: {initial_score: score, death_penalty: penalty}}),
+  });
+  const d = await r.json();
+  alert(`Session created!\nID: ${d.session_id}\nToken: ${d.agent_token}\nSpectate: ${d.spectate_url}`);
+  hideCreateModal();
+  fetchSessions();
+}
+
+async function deleteSession(id) {
+  if (!confirm('Delete this session?')) return;
+  await fetch(`${API}/api/sessions/${id}`, {method: 'DELETE'});
+  fetchSessions();
+}
+
+function watchSession(id) {
+  if (ws) { ws.close(); ws = null; }
+  const ttyView = document.getElementById('ttyView');
+  ttyView.style.display = 'block';
+  document.getElementById('ttySessionId').textContent = id.slice(0,8) + '...';
+  const ttyOutput = document.getElementById('ttyOutput');
+  ttyOutput.innerHTML = '<div style="color:#94a3b8">Connecting...</div>';
+  const wsUrl = `${API.replace('http','ws')}/ws/spectate/${id}`;
+  ws = new WebSocket(wsUrl);
+  let ttyChars = null;
+  let ttyColors = null;
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'runtime_ready') { ttyOutput.innerHTML = '<div style="color:#22c55e">Connected, waiting for game state...</div>'; return; }
+    if (msg.type === 'runtime_event' && msg.event.type === 'map_glyph_batch') {
+      if (!ttyChars) { ttyChars = Array.from({length: 21}, () => Array(79).fill(' ')); ttyColors = Array.from({length: 21}, () => Array(79).fill(7)); }
+      for (const t of msg.event.tiles) {
+        if (t.y < 21 && t.x < 79) { ttyChars[t.y][t.x] = t.char || ' '; ttyColors[t.y][t.x] = t.color; }
+      }
+      renderTTY(ttyChars, ttyColors, ttyOutput);
+    }
+    if (msg.type === 'runtime_event_batch') {
+      for (const evt of msg.events) {
+        if (evt.type === 'map_glyph_batch') {
+          if (!ttyChars) { ttyChars = Array.from({length: 21}, () => Array(79).fill(' ')); ttyColors = Array.from({length: 21}, () => Array(79).fill(7)); }
+          for (const t of evt.tiles) {
+            if (t.y < 21 && t.x < 79) { ttyChars[t.y][t.x] = t.char || ' '; ttyColors[t.y][t.x] = t.color; }
+          }
+        }
+        if (evt.type === 'clear_scene') { ttyChars = Array.from({length: 21}, () => Array(79).fill(' ')); ttyColors = Array.from({length: 21}, () => Array(79).fill(7)); }
+      }
+      if (ttyChars) renderTTY(ttyChars, ttyColors, ttyOutput);
+    }
+  };
+  ws.onerror = () => { ttyOutput.innerHTML = '<div style="color:#ef4444">Connection error</div>'; };
+  ws.onclose = () => { ttyOutput.innerHTML += '<div style="color:#eab308">Disconnected</div>'; };
+}
+
+const ANSI_COLORS = ['#000','#aa0000','#00aa00','#aa5500','#0000aa','#aa00aa','#00aaaa','#aaaaaa',
+                     '#555555','#ff5555','#55ff55','#ffff55','#5555ff','#ff55ff','#55ffff','#ffffff'];
+function renderTTY(chars, colors, el) {
+  el.innerHTML = chars.map((row, y) => '<div class="tty-row">' +
+    row.map((ch, x) => `<span style="color:${ANSI_COLORS[colors[y][x] & 0xf]}">${ch === '<' ? '&lt;' : ch === '>' ? '&gt;' : ch === '&' ? '&amp;' : ch}</span>`).join('') + '</div>').join('');
+}
+
+function spectate3D(id) {
+  const wsUrl = `${API.replace('http','ws')}/ws/spectate/${id}`;
+  window.open(`http://${window.location.hostname}:3000/?remote=${encodeURIComponent(wsUrl)}`, '_blank');
+}
+
+setInterval(() => {
+  const s = Math.floor((Date.now() - startTime) / 1000);
+  const m = Math.floor(s / 60);
+  document.getElementById('uptime').textContent = m > 0 ? `${m}m ${s%60}s` : `${s}s`;
+}, 1000);
+setInterval(fetchSessions, 5000);
+fetchSessions();
+</script>
+</body>
+</html>
