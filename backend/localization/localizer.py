@@ -32,16 +32,28 @@ class NLELocalizer:
         if not name:
             return name
         lower = name.lower().strip()
+        is_pet = False
+        if lower.endswith(" (pet)"):
+            is_pet = True
+            lower = lower[:-6]
         if lower in self.monster_dict:
-            return self.monster_dict[lower]
+            zh = self.monster_dict[lower]
+            return f"{zh}(宠物)" if is_pet else zh
         if lower in self.item_dict:
             return self.item_dict[lower]
         if lower in self.terrain_dict:
             return self.terrain_dict[lower]
+        for en, zh in self.terrain_dict.items():
+            if en.lower() == lower:
+                return zh
+        for en, zh in self.monster_dict.items():
+            if en in lower:
+                zh_name = lower.replace(en, zh)
+                return f"{zh_name}(宠物)" if is_pet else zh_name
         for en, zh in self.item_dict.items():
             if en in lower:
                 return lower.replace(en, zh)
-        return name
+        return f"{name}(宠物)" if is_pet else name
 
     def translate_status_label(self, label: str) -> str:
         return self.status_labels.get(label, label)

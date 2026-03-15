@@ -1,6 +1,7 @@
 """Convert NLE observations into nethack-3d RuntimeEvent format."""
 import numpy as np
 from typing import Optional
+from localization.localizer import NLELocalizer
 
 BL_FIELD_MAP_367 = {
     0: "BL_TITLE", 1: "BL_STR", 2: "BL_DX", 3: "BL_CO",
@@ -50,6 +51,7 @@ class NLEEventConverter:
         self._prev_glyphs: Optional[np.ndarray] = None
         self._prev_blstats: Optional[np.ndarray] = None
         self._last_player_pos: tuple = None
+        self.localizer = NLELocalizer(lang="zh_cn")
 
     def obs_to_events(self, obs: dict, reward: float = 0.0,
                       done: bool = False, full: bool = False) -> list[dict]:
@@ -180,8 +182,9 @@ class NLEEventConverter:
             msg = str(msg_raw).strip()
         if not msg:
             return []
+        msg_zh = self.localizer.translate_message(msg)
         return [{"type": "runtime_event", "event": {
-            "type": "text", "text": msg, "window": 1, "attr": 0,
+            "type": "text", "text": msg_zh, "window": 1, "attr": 0,
         }}]
 
     def _inventory_events(self, obs: dict) -> list[dict]:

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>NLE Agent Platform - Dashboard</title>
+<title>NLE Agent 平台 - 控制台</title>
 <style>
 :root { --bg: #0f172a; --surface: #1e293b; --primary: #3b82f6; --success: #22c55e;
   --warn: #eab308; --danger: #ef4444; --text: #e2e8f0; --muted: #94a3b8; }
@@ -52,43 +52,43 @@ footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.8r
 </head>
 <body>
 <div class="header">
-  <h1>NLE Agent Platform</h1>
+  <h1>NLE Agent 智能体平台</h1>
   <div class="status"><div class="dot" id="serverDot"></div><span id="serverStatus">Connecting...</span></div>
 </div>
 <div class="container">
   <div class="stats">
-    <div class="stat-card"><div class="label">Active Sessions</div><div class="value" id="activeSessions">0</div></div>
-    <div class="stat-card"><div class="label">Total Spectators</div><div class="value" id="totalSpectators">0</div></div>
-    <div class="stat-card"><div class="label">Server Uptime</div><div class="value" id="uptime">--</div></div>
+    <div class="stat-card"><div class="label">活跃会话</div><div class="value" id="activeSessions">0</div></div>
+    <div class="stat-card"><div class="label">观战人数</div><div class="value" id="totalSpectators">0</div></div>
+    <div class="stat-card"><div class="label">服务器运行时间</div><div class="value" id="uptime">--</div></div>
   </div>
   <div class="sessions">
     <div class="sessions-header">
-      <h2>Game Sessions</h2>
-      <button class="btn btn-primary" onclick="showCreateModal()">+ New Session</button>
+      <h2>游戏会话</h2>
+      <button class="btn btn-primary" onclick="showCreateModal()">+ 新建会话</button>
     </div>
     <table>
-      <thead><tr><th>Session ID</th><th>Agent</th><th>Status</th><th>Spectators</th><th>Actions</th></tr></thead>
-      <tbody id="sessionsBody"><tr><td colspan="5" class="empty">Loading...</td></tr></tbody>
+      <thead><tr><th>会话ID</th><th>智能体</th><th>状态</th><th>观战人数</th><th>操作</th></tr></thead>
+      <tbody id="sessionsBody"><tr><td colspan="5" class="empty">加载中...</td></tr></tbody>
     </table>
   </div>
   <div id="ttyView" style="display:none; margin-top: 2rem; background: var(--surface); border-radius: 12px; padding: 1.5rem; border: 1px solid #334155;">
-    <h3 style="margin-bottom: 1rem; font-size: 1.25rem;">Live Game View - <span id="ttySessionId"></span></h3>
+    <h3 style="margin-bottom: 1rem; font-size: 1.25rem;">实时游戏视图 - <span id="ttySessionId"></span></h3>
     <div class="tty-container" id="ttyOutput"></div>
   </div>
 </div>
 <div class="modal-overlay" id="createModal">
   <div class="modal">
-    <h3>Create New Session</h3>
-    <div class="form-group"><label>Agent Name</label><input id="agentName" placeholder="my-agent" value="my-agent"></div>
-    <div class="form-group"><label>Initial Score</label><input id="initScore" type="number" value="1000"></div>
-    <div class="form-group"><label>Death Penalty</label><input id="deathPenalty" type="number" value="200"></div>
+    <h3>创建新会话</h3>
+    <div class="form-group"><label>智能体名称</label><input id="agentName" placeholder="my-agent" value="my-agent"></div>
+    <div class="form-group"><label>初始分数</label><input id="initScore" type="number" value="1000"></div>
+    <div class="form-group"><label>死亡惩罚</label><input id="deathPenalty" type="number" value="200"></div>
     <div class="modal-actions">
-      <button class="btn btn-outline" onclick="hideCreateModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="createSession()">Create</button>
+      <button class="btn btn-outline" onclick="hideCreateModal()">取消</button>
+      <button class="btn btn-primary" onclick="createSession()">创建</button>
     </div>
   </div>
 </div>
-<footer>NLE LLM Agent Cloud Gaming Platform &copy; 2026</footer>
+<footer>NLE LLM Agent 云游戏智能体平台 &copy; 2026</footer>
 <script>
 const API = window.location.origin;
 let ws = null;
@@ -100,29 +100,29 @@ async function fetchSessions() {
     const d = await r.json();
     const health = await (await fetch(`${API}/api/health`)).json();
     document.getElementById('serverDot').style.background = '#22c55e';
-    document.getElementById('serverStatus').textContent = 'Online';
+    document.getElementById('serverStatus').textContent = '在线';
     renderSessions(d.sessions || d);
     const total = (d.sessions || d).reduce((s, x) => s + (x.spectators || 0), 0);
     document.getElementById('activeSessions').textContent = (d.sessions || d).length;
     document.getElementById('totalSpectators').textContent = total;
   } catch (e) {
     document.getElementById('serverDot').style.background = '#ef4444';
-    document.getElementById('serverStatus').textContent = 'Offline';
+    document.getElementById('serverStatus').textContent = '离线';
   }
 }
 
 function renderSessions(sessions) {
   const tbody = document.getElementById('sessionsBody');
-  if (!sessions.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No active sessions</td></tr>'; return; }
+  if (!sessions.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">暂无活跃会话</td></tr>'; return; }
   tbody.innerHTML = sessions.map(s => `<tr>
     <td><code>${s.session_id.slice(0, 8)}...</code></td>
     <td>${s.agent_name || 'N/A'}</td>
     <td><span class="badge badge-${s.status || 'running'}">${s.status || 'running'}</span></td>
     <td>${s.spectators || 0}</td>
     <td class="actions-cell">
-      <button class="btn btn-sm btn-outline" onclick="watchSession('${s.session_id}')">Watch</button>
-      <button class="btn btn-sm btn-outline" onclick="spectate3D('${s.session_id}')">3D View</button>
-      ${s.session_id !== 'default' ? `<button class="btn btn-sm btn-danger" onclick="deleteSession('${s.session_id}')">Delete</button>` : ''}
+      <button class="btn btn-sm btn-outline" onclick="watchSession('${s.session_id}')">观战</button>
+      <button class="btn btn-sm btn-outline" onclick="spectate3D('${s.session_id}')">3D观战</button>
+      ${s.session_id !== 'default' ? `<button class="btn btn-sm btn-danger" onclick="deleteSession('${s.session_id}')">删除</button>` : ''}
     </td>
   </tr>`).join('');
 }
@@ -139,13 +139,13 @@ async function createSession() {
     body: JSON.stringify({agent_name: name, config: {initial_score: score, death_penalty: penalty}}),
   });
   const d = await r.json();
-  alert(`Session created!\nID: ${d.session_id}\nToken: ${d.agent_token}\nSpectate: ${d.spectate_url}`);
+  alert(`会话已创建！\nID: ${d.session_id}\n令牌: ${d.agent_token}\n观战地址: ${d.spectate_url}`);
   hideCreateModal();
   fetchSessions();
 }
 
 async function deleteSession(id) {
-  if (!confirm('Delete this session?')) return;
+  if (!confirm('确定删除该会话？')) return;
   await fetch(`${API}/api/sessions/${id}`, {method: 'DELETE'});
   fetchSessions();
 }
@@ -156,14 +156,14 @@ function watchSession(id) {
   ttyView.style.display = 'block';
   document.getElementById('ttySessionId').textContent = id.slice(0,8) + '...';
   const ttyOutput = document.getElementById('ttyOutput');
-  ttyOutput.innerHTML = '<div style="color:#94a3b8">Connecting...</div>';
+  ttyOutput.innerHTML = '<div style="color:#94a3b8">连接中...</div>';
   const wsUrl = `${API.replace('http','ws')}/ws/spectate/${id}`;
   ws = new WebSocket(wsUrl);
   let ttyChars = null;
   let ttyColors = null;
   ws.onmessage = (e) => {
     const msg = JSON.parse(e.data);
-    if (msg.type === 'runtime_ready') { ttyOutput.innerHTML = '<div style="color:#22c55e">Connected, waiting for game state...</div>'; return; }
+    if (msg.type === 'runtime_ready') { ttyOutput.innerHTML = '<div style="color:#22c55e">已连接，等待游戏数据...</div>'; return; }
     if (msg.type === 'runtime_event' && msg.event.type === 'clear_scene') {
       ttyChars = Array.from({length: 21}, () => Array(79).fill(' '));
       ttyColors = Array.from({length: 21}, () => Array(79).fill(7));
@@ -190,8 +190,8 @@ function watchSession(id) {
       if (ttyChars) renderTTY(ttyChars, ttyColors, ttyOutput);
     }
   };
-  ws.onerror = () => { ttyOutput.innerHTML = '<div style="color:#ef4444">Connection error</div>'; };
-  ws.onclose = () => { ttyOutput.innerHTML += '<div style="color:#eab308">Disconnected</div>'; };
+  ws.onerror = () => { ttyOutput.innerHTML = '<div style="color:#ef4444">连接错误</div>'; };
+  ws.onclose = () => { ttyOutput.innerHTML += '<div style="color:#eab308">已断开连接</div>'; };
 }
 
 const ANSI_COLORS = ['#000','#aa0000','#00aa00','#aa5500','#0000aa','#aa00aa','#00aaaa','#aaaaaa',

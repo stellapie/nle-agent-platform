@@ -2,6 +2,7 @@
 import numpy as np
 from typing import Optional
 import nle.nethack as nethack
+from localization.localizer import NLELocalizer
 
 GLYPH_MON_OFF = nethack.GLYPH_MON_OFF
 GLYPH_PET_OFF = nethack.GLYPH_PET_OFF
@@ -19,14 +20,14 @@ GLYPH_STATUE_OFF = nethack.GLYPH_STATUE_OFF
 NUMMONS = nethack.NUMMONS
 
 DIRECTION_NAMES = [
-    ("north", 0, -1), ("south", 0, 1),
-    ("east", 1, 0), ("west", -1, 0),
-    ("northeast", 1, -1), ("northwest", -1, -1),
-    ("southeast", 1, 1), ("southwest", -1, 1),
+    ("north", "北", 0, -1), ("south", "南", 0, 1),
+    ("east", "东", 1, 0), ("west", "西", -1, 0),
+    ("northeast", "东北", 1, -1), ("northwest", "西北", -1, -1),
+    ("southeast", "东南", 1, 1), ("southwest", "西南", -1, 1),
 ]
 
-ALIGN_NAMES = {-1: "Chaotic", 0: "Neutral", 1: "Lawful"}
-HUNGER_NAMES = {0: "Satiated", 1: "Not Hungry", 2: "Hungry", 3: "Weak", 4: "Fainting", 5: "Fainted", 6: "Starved"}
+ALIGN_NAMES = {-1: "混沌", 0: "中立", 1: "守序"}
+HUNGER_NAMES = {0: "饱腹", 1: "不饿", 2: "饥饿", 3: "虚弱", 4: "晕厥", 5: "晕倒", 6: "饿死"}
 
 
 def glyph_to_name(glyph: int) -> Optional[str]:
@@ -70,6 +71,9 @@ def glyph_to_name(glyph: int) -> Optional[str]:
 class NLETextObserver:
     """Produce structured text observations from NLE numpy arrays."""
 
+    def __init__(self, lang: str = "zh_cn"):
+        self.localizer = NLELocalizer(lang=lang)
+
     @staticmethod
     def _find_player_pos(obs: dict) -> tuple[int, int]:
         """Extract player (x, y) from tty_cursor or chars array."""
@@ -101,17 +105,17 @@ class NLETextObserver:
         parts = self.observe(obs, meta)
         sections = []
         if parts["message"]:
-            sections.append(f"[Message] {parts['message']}")
-        sections.append(f"[Status] {parts['status']}")
-        sections.append(f"[Surroundings] {parts['surroundings']}")
+            sections.append(f"[消息] {parts['message']}")
+        sections.append(f"[状态] {parts['status']}")
+        sections.append(f"[周围环境] {parts['surroundings']}")
         if parts["adjacent"]:
-            sections.append(f"[Adjacent] {parts['adjacent']}")
+            sections.append(f"[相邻格子] {parts['adjacent']}")
         if parts["visible_entities"]:
-            sections.append(f"[Visible Entities] {parts['visible_entities']}")
+            sections.append(f"[可见实体] {parts['visible_entities']}")
         if parts["inventory"]:
-            sections.append(f"[Inventory] {parts['inventory']}")
+            sections.append(f"[背包] {parts['inventory']}")
         if parts["meta"]:
-            sections.append(f"[Score System] {parts['meta']}")
+            sections.append(f"[积分系统] {parts['meta']}")
         return "\n".join(sections)
 
     def _describe_surroundings(self, obs: dict) -> str:
@@ -122,9 +126,10 @@ class NLETextObserver:
 
         standing_on = glyph_to_name(int(glyphs[py, px]))
         dl = int(bl[22]) if len(bl) > 22 else 1
-        parts = [f"Dungeon level {dl}."]
-        if standing_on:
-            parts.append(f"Standing on: {standing_on}.")
+        standing_on_zh = self.localizer.translate_entity(standing_on) if standing_on else None
+        parts = [f"地牢第{dl}层。"]
+        if standing_on_zh:
+            parts.append(f"脚下: {standing_on_zh}。")
         return " ".join(parts)
 
     def _describe_adjacent(self, obs: dict) -> str:
@@ -133,13 +138,14 @@ class NLETextObserver:
         glyphs = obs["glyphs"]
         h, w = glyphs.shape
         adj = []
-        for name, dx, dy in DIRECTION_NAMES:
+        for name, name_zh, dx, dy in DIRECTION_NAMES:
             nx, ny = px + dx, py + dy
             if 0 <= ny < h and 0 <= nx < w:
                 g = int(glyphs[ny, nx])
                 tile_name = glyph_to_name(g)
                 if tile_name and tile_name not in ("dark area", "stone"):
-                    adj.append(f"{name}: {tile_name}")
+                    tile_zh = self.localizer.translate_entity(tile_name)
+                    adj.append(f"{name_zh}: {tile_zh}")
         return ", ".join(adj) if adj else ""
 
     def _list_visible_entities(self, obs: dict) -> str:
@@ -160,20 +166,21 @@ class NLETextObserver:
                     dx, dy_val = x - px, y - py
                     dist = max(abs(dx), abs(dy_val))
                     direction = self._offset_to_direction(dx, dy_val)
-                    entities.append(f"{name} ({direction}, {dist} tiles)")
+                    name_zh = self.localizer.translate_entity(name)
+                    entities.append(f"{name_zh} ({direction}, {dist}格)")
         return ", ".join(entities) if entities else ""
 
     def _offset_to_direction(self, dx: int, dy: int) -> str:
         parts = []
         if dy < 0:
-            parts.append("north")
+            parts.append("北")
         elif dy > 0:
-            parts.append("south")
+            parts.append("南")
         if dx > 0:
-            parts.append("east")
+            parts.append("东")
         elif dx < 0:
-            parts.append("west")
-        return "".join(parts) or "here"
+            parts.append("西")
+        return "".join(parts) or "此处"
 
     def _describe_status(self, obs: dict, meta: Optional[dict]) -> str:
         bl = obs["blstats"]
@@ -197,10 +204,10 @@ class NLETextObserver:
         hunger_str = HUNGER_NAMES.get(hunger, str(hunger))
         align_str = ALIGN_NAMES.get(align, str(align))
 
-        line = (f"HP:{hp}/{hp_max} MP:{mp}/{mp_max} AC:{ac} "
-                f"Lv:{lvl} XP:{xp} Gold:{gold} | "
-                f"St:{st} Dx:{dx_val} Co:{co} In:{in_val} Wi:{wi} Ch:{ch} | "
-                f"Hunger:{hunger_str} Align:{align_str}")
+        line = (f"生命:{hp}/{hp_max} 法力:{mp}/{mp_max} 护甲:{ac} "
+                f"等级:{lvl} 经验:{xp} 金币:{gold} | "
+                f"力量:{st} 敏捷:{dx_val} 体质:{co} 智力:{in_val} 感知:{wi} 魅力:{ch} | "
+                f"饥饿度:{hunger_str} 阵营:{align_str}")
         return line
 
     def _describe_inventory(self, obs: dict) -> str:
@@ -218,15 +225,24 @@ class NLETextObserver:
                 else:
                     desc = str(inv_strs[i])
             items.append(f"{chr(letter)}: {desc}")
-        return "; ".join(items) if items else "empty"
+        if not items:
+            return "空"
+        items_zh = []
+        for item in items:
+            letter, desc = item.split(": ", 1)
+            desc_zh = self.localizer.translate_message(desc)
+            items_zh.append(f"{letter}: {desc_zh}")
+        return "; ".join(items_zh)
 
     def _decode_message(self, obs: dict) -> str:
         msg = obs.get("message", b"")
         if isinstance(msg, np.ndarray):
-            return bytes(msg).decode("ascii", errors="ignore").strip("\x00").strip()
-        if isinstance(msg, bytes):
-            return msg.decode("ascii", errors="ignore").strip()
-        return str(msg).strip()
+            raw = bytes(msg).decode("ascii", errors="ignore").strip("\x00").strip()
+        elif isinstance(msg, bytes):
+            raw = msg.decode("ascii", errors="ignore").strip()
+        else:
+            raw = str(msg).strip()
+        return self.localizer.translate_message(raw) if raw else raw
 
     def _describe_meta(self, meta: Optional[dict]) -> str:
         if not meta:
@@ -235,4 +251,4 @@ class NLETextObserver:
         deaths = meta.get("deaths", 0)
         steps = meta.get("total_steps", 0)
         ep = meta.get("episode_count", 0)
-        return f"Score:{ts:.0f} Deaths:{deaths} Steps:{steps} Episode:{ep}"
+        return f"分数:{ts:.0f} 死亡:{deaths} 步数:{steps} 局数:{ep}"
